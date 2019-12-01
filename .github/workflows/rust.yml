@@ -1,0 +1,25 @@
+name: Rust
+
+on: [push]
+
+jobs:
+  build:
+    
+    services:
+      minio:
+        image: minio/minio
+        ports:
+          - 9001:9000
+        env:
+          MINIO_ACCESS_KEY: test
+          MINIO_SECRET_KEY: test1234
+          MINIO_DOMAIN: localhost
+    
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Build
+      run: cargo build --verbose
+    - name: Run tests
+      run: cargo test --verbose
