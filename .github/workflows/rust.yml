@@ -14,7 +14,7 @@ jobs:
           MINIO_ACCESS_KEY: test
           MINIO_SECRET_KEY: test1234
           MINIO_DOMAIN: localhost
-        options: server /home/shared
+        command: server /home/shared
     
     runs-on: ubuntu-latest
 
