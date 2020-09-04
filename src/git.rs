@@ -41,19 +41,6 @@ pub fn is_ancestor(base_ref: &str, remote_ref: &str) -> Result<bool> {
     Ok(result.status.success())
 }
 
-pub fn config(setting: &str) -> Result<String> {
-    let result = Command::new("git")
-        .arg("config")
-        .arg(setting)
-        .output()
-        .chain_err(|| "failed to run git")?;
-    if !result.status.success() {
-        bail!("git config failed");
-    }
-    let s = String::from_utf8(result.stdout).chain_err(|| "not utf8")?;
-    Ok(s.trim().to_string())
-}
-
 pub fn rev_parse(rev: &str) -> Result<String> {
     let result = Command::new("git")
         .arg("rev-parse")

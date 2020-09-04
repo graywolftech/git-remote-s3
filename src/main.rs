@@ -22,15 +22,11 @@ pub mod errors {
 }
 use errors::*;
 mod git;
-mod gpg;
 mod s3;
 
 quick_main!(run);
 
 struct Settings {
-    git_dir: PathBuf,
-    remote_alias: String,
-    remote_url: String,
     root: s3::Key,
 }
 
@@ -60,7 +56,6 @@ fn run() -> Result<()> {
             Some(idx) => idx,
             None => {
                 bail!("remote url does not appear to have a prefix. expected a url in the format s3://bucket/prefix");
-                0
             }
         };
         let bucket = url.get(..slash).unwrap();
@@ -81,9 +76,6 @@ fn run() -> Result<()> {
         .chain_err(|| format!("could not create work dir: {:?}", work_dir))?;
 
     let settings = Settings {
-        git_dir,
-        remote_url: url.to_owned(),
-        remote_alias: alias,
         root: s3::Key {
             bucket: bucket.to_string(),
             key: path.to_string(),
@@ -136,16 +128,14 @@ fn fetch_from_s3(s3: &S3Client, settings: &Settings, r: &GitRef) -> Result<()> {
         .tempdir()
         .chain_err(|| "mktemp dir failed")?;
     let bundle_file = tmp_dir.path().join("bundle");
-    let enc_file = tmp_dir.path().join("buncle_enc");
+    // let enc_file = tmp_dir.path().join("buncle_enc");
 
     let path = r.bundle_path(settings.root.key.to_owned());
     let o = s3::Key {
         bucket: settings.root.bucket.to_owned(),
         key: path,
     };
-    s3::get(s3, &o, &enc_file)?;
-
-    gpg::decrypt(&enc_file, &bundle_file)?;
+    s3::get(s3, &o, &bundle_file)?;
 
     git::bundle_unbundle(&bundle_file, &r.name)?;
 
@@ -158,27 +148,16 @@ fn push_to_s3(s3: &S3Client, settings: &Settings, r: &GitRef) -> Result<()> {
         .tempdir()
         .chain_err(|| "mktemp dir failed")?;
     let bundle_file = tmp_dir.path().join("bundle");
-    let enc_file = tmp_dir.path().join("buncle_enc");
+    // let enc_file = tmp_dir.path().join("buncle_enc");
 
     git::bundle_create(&bundle_file, &r.name)?;
-
-    let recipients = git::config(&format!("remote.{}.gpgRecipients", settings.remote_alias))
-        .map(|config| {
-            config
-                .split_ascii_whitespace()
-                .map(|s| s.to_string())
-                .collect_vec()
-        })
-        .or_else(|_| git::config("user.email").map(|recip| vec![recip]))?;
-
-    gpg::encrypt(&recipients, &bundle_file, &enc_file)?;
 
     let path = r.bundle_path(settings.root.key.to_owned());
     let o = s3::Key {
         bucket: settings.root.bucket.to_owned(),
         key: path,
     };
-    s3::put(s3, &enc_file, &o)?;
+    s3::put(s3, &bundle_file, &o)?;
 
     Ok(())
 }
@@ -291,6 +270,7 @@ fn list_remote_refs(s3: &S3Client, settings: &Settings) -> Result<HashMap<String
         Some(l) => l,
         None => vec![],
     };
+
     let map: HashMap<String, Vec<RemoteRef>> = objects
         .into_iter()
         .flat_map(|o| {
