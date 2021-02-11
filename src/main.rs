@@ -16,6 +16,9 @@ use std::env;
 use std::fs::{self};
 use std::io::{self};
 use std::path::PathBuf;
+use std::process;
+use std::io::ErrorKind;
+use std::io::Write;
 
 pub mod errors {
     error_chain! {}
@@ -122,6 +125,17 @@ impl RemoteRefs {
     }
 }
 
+fn write_line() {
+    let mut stdout = io::stdout();
+
+    if let Err(e) = writeln!(stdout, "") {
+        if e.kind() != ErrorKind::BrokenPipe {
+            eprintln!("{}", e);
+            process::exit(1);
+        }
+    }
+}
+
 fn fetch_from_s3(s3: &S3Client, settings: &Settings, r: &GitRef) -> Result<()> {
     let tmp_dir = Builder::new()
         .prefix("s3_fetch")
@@ -172,7 +186,7 @@ fn cmd_fetch(s3: &S3Client, settings: &Settings, sha: &str, name: &str) -> Resul
         sha: sha.to_string(),
     };
     fetch_from_s3(s3, settings, &git_ref)?;
-    println!();
+    write_line();
     Ok(())
 }
 
@@ -224,7 +238,7 @@ fn cmd_push(s3: &S3Client, settings: &Settings, push_ref: &str) -> Result<()> {
         println!("ok {}", dst_ref);
     };
 
-    println!();
+    write_line();
     Ok(())
 }
 
@@ -260,7 +274,7 @@ fn cmd_loop(s3: &S3Client, settings: &Settings) -> Result<()> {
 
 fn cmd_unknown() -> Result<()> {
     println!("unknown command");
-    println!();
+    write_line();
     Ok(())
 }
 
@@ -335,13 +349,13 @@ fn cmd_list(s3: &S3Client, settings: &Settings) -> Result<()> {
             println!("@refs/heads/master HEAD");
         }
     }
-    println!();
+    write_line();
     Ok(())
 }
 
 fn cmd_capabilities() -> Result<()> {
     println!("*push");
     println!("*fetch");
-    println!();
+    write_line();
     Ok(())
 }
